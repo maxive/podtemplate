@@ -2,8 +2,18 @@
 # CONFIGURACION BASICA
 # ===================================================================== #
 # Este ejemplo requiere Lima v0.11.1 o posterior.
-# Los valores predeterminados en este archivo YAML están especificados por
-# `null` en lugar de los valores "predeterminados" de Lima,
+# Para ver la lista de plantillas:
+# $ limactl start --list-templates
+# Para crear una instancia predeterminada "default" a partir de esta plantilla "maxive"
+# en caso que la misma este copiada manualmente en la carpeta examples use:
+# $ limactl start --name=default template://maxive
+# 
+# Para crear una instancia predeterminada "default" a partir de un archivo local:
+# $ limactl start --name=default /usr/local/share/lima/examples/fedora.yaml
+#
+# Para crear una instancia predeterminada "default" desde una URL remota (use con cuidado, con una fuente confiable):
+# $ limactl start --name=default https://raw.githubusercontent.com/maxive/podtemplate/main/maxive.yaml
+
 # para que puedan ser anulados por el mecanismo $LIMA_HOME/_config/default.yaml documentado al final de este archivo.
 
 # Tipo de VM: "qemu" o "vz" (en macOS 13 y versiones posteriores).
