@@ -1,0 +1,72 @@
+# ===================================================================== #
+# CONFIGURACION BASICA
+# ===================================================================== #
+# Este ejemplo requiere Lima v0.11.1 o posterior.
+# Los valores predeterminados en este archivo YAML están especificados por
+# `null` en lugar de los valores "predeterminados" de Lima,
+# para que puedan ser anulados por el mecanismo $LIMA_HOME/_config/default.yaml documentado al final de este archivo.
+
+# Tipo de VM: "qemu" o "vz" (en macOS 13 y versiones posteriores).
+# El vmType solo se puede especificar al crear la instancia.
+# El vmType de las instancias existentes no se puede cambiar.
+# 🟢 Valor predeterminado incorporado: "qemu"
+vmType: "vz"
+# Sugerencia: ejecute `limactl prune` para invalidar el caché
+images:
+- location: "https://repo.almalinux.org/almalinux/9.1/cloud/x86_64/images/AlmaLinux-9-GenericCloud-9.1-20221118.x86_64.qcow2"
+  arch: "x86_64"
+  digest: "sha256:1e93210a0c534de76ae01dc02e8224be14264fa8d54ad6cff9af15b673c6db1a"
+- location: "https://repo.almalinux.org/almalinux/9.1/cloud/aarch64/images/AlmaLinux-9-GenericCloud-9.1-20221118.aarch64.qcow2"
+  arch: "aarch64"
+  digest: "sha256:3405f30db62441c18258c21c01754addeb4dfdf9714d151f042942d223ab3865"
+mounts:
+- location: "~"
+- location: "/tmp/lima"
+  writable: true
+# Maxive es infraestrctura digital que se provisiona bajo Lima
+# usa por defecto Podman en Alma Linux 
+containerd:
+  system: false
+  user: false
+provision:
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    command -v podman >/dev/null 2>&1 && exit 0
+    if [ ! -e /etc/systemd/system/podman.socket.d/override.conf ]; then
+      mkdir -p /etc/systemd/system/podman.socket.d
+      cat <<-EOF >/etc/systemd/system/podman.socket.d/override.conf
+      [Socket]
+      SocketUser=${LIMA_CIDATA_USER}
+    EOF
+    fi
+    if [ ! -e /etc/tmpfiles.d/podman.conf ]; then
+      mkdir -p /etc/tmpfiles.d
+      echo "d /run/podman 0700 ${LIMA_CIDATA_USER} -" > /etc/tmpfiles.d/podman.conf
+    fi
+    dnf -y install podman
+- mode: system
+  script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    systemctl --system enable --now podman.socket
+probes:
+- script: |
+    #!/bin/bash
+    set -eux -o pipefail
+    if ! timeout 30s bash -c "until command -v podman >/dev/null 2>&1; do sleep 3; done"; then
+      echo >&2 "Podman no esta instalada todavia"
+      exit 1
+    fi
+  hint: See "/var/log/cloud-init-output.log" in the guest
+portForwards:
+- guestSocket: "/run/podman/podman.sock"
+  hostSocket: "{{.Dir}}/sock/podman.sock"
+message: |
+  To run `podman` on the host (assumes podman-remote is installed), run the following commands:
+  ------
+  podman system connection add lima-{{.Name}} "unix://{{.Dir}}/sock/podman.sock"
+  podman system connection default lima-{{.Name}}
+  podman{{if eq .HostOS "linux"}} --remote{{end}} run quay.io/podman/hello
+  ------
